@@ -65,11 +65,18 @@ and `pkgdown` deploy — all on push/PR to `master`.
 | [R/shapley.R](R/shapley.R) | `shapley_decomp()`, `sequential_decomp()`, `all_orderings()` | evaluates `f` on all 2^K subsets (bitmasks); `groups =` splits one parameter into several players |
 | [R/kitagawa.R](R/kitagawa.R) | `kitagawa2()`, `das_gupta_n()` | `das_gupta_n()` is a thin wrapper around `shapley_decomp()` |
 | [R/arriaga.R](R/arriaga.R) | `life_table()`, `arriaga_decomp()` | defaults to `ax = nx/2`; pass `ax` to match LEdecomp's Andreev-Kingkade a0 |
+| [R/life_expectancy.R](R/life_expectancy.R) | `life_expectancy()` | same formulas as `life_table()`, vectorised over matrix columns with `colCumprods()` |
+| [R/stepwise.R](R/stepwise.R) | `stepwise_decomp()` | = `DemoDecomp::stepwise_replacement()`; end points evaluated once; `direction = "down"`, `symmetrical = FALSE` = Arriaga |
+| [R/horiuchi.R](R/horiuchi.R) | `horiuchi_decomp()` | = `DemoDecomp::horiuchi()` incl. `components`; vectorised path writes half-steps sparsely into one matrix per block of steps (`max_elements`) |
 | [R/ltre.R](R/ltre.R) | `ltre_fixed()`, `lambda_sensitivity()`, `leontief_sensitivity()`, `numeric_sensitivity()` | midpoint-matrix sensitivity × change, as in `popbio::LTRE()` |
 | [R/gvc_components.R](R/gvc_components.R) | `gvc_components()` | all four GVC methods mapped onto VAX/REF/DDC/FVA/FDC (Leontief: DC/FC) |
 | [R/simulate_icio.R](R/simulate_icio.R) | `simulate_icio()` | balanced synthetic `iot` tables |
 
-The tests cross-check against `DasGuptR`, `LEdecomp` and `popbio` (in Suggests, guarded with
+With `vectorized = TRUE`, `func` takes a matrix (one parameter set per column) and returns one
+value per column; this is where the speed comes from, since evaluating `func` dominates the cost.
+Benchmark against DemoDecomp: `Rscript misc/bench_stepwise_horiuchi.R`.
+
+The tests cross-check against `DasGuptR`, `DemoDecomp`, `LEdecomp` and `popbio` (in Suggests, guarded with
 `skip_if_not_installed()`) to 1e-6. `leontief_sensitivity(A, v, e)` differentiates the **full**
 sum `v'(I-A)^-1 e`. To attribute a single country's domestic content, mask `v` (and `e`) to that
 country's rows first.

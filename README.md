@@ -24,15 +24,25 @@ The GVC code is a fork of the [`icio`](https://github.com/SebKrantz/icio) packag
 | Area | Functions |
 |---|---|
 | GVC decompositions | `load_icio()`, `load_icio_csv()`, `bm()` (Borin & Mancini 2019), `leontief()` (Hummels, Ishii & Yi 2001), `kww()` (Koopman, Wang & Wei 2014), `wwz()` (Wang, Wei & Zhu 2013), `decomp()`, `gvc_components()` |
-| Demographic decompositions | `kitagawa2()` (Kitagawa 1955), `das_gupta_n()` (Das Gupta 1993), `life_table()`, `arriaga_decomp()` (Arriaga 1984), `ltre_fixed()` (Caswell 1989) |
+| Demographic decompositions | `kitagawa2()` (Kitagawa 1955), `das_gupta_n()` (Das Gupta 1993), `life_table()`, `life_expectancy()`, `arriaga_decomp()` (Arriaga 1984), `stepwise_decomp()` (Andreev, Shkolnikov & Begun 2002), `horiuchi_decomp()` (Horiuchi, Wilmoth & Pletcher 2008), `ltre_fixed()` (Caswell 1989) |
 | Shared matrix models | `leontief_inverse()`, `value_added_multipliers()`, `fundamental_matrix()`, `expected_time_in_state()`, `lambda_sensitivity()`, `leontief_sensitivity()`, `numeric_sensitivity()` |
 | Order-independent decomposition | `shapley_decomp()`, `sequential_decomp()`, `all_orderings()` |
 | Data | `leather`, `icio_synth`, `dk_mortality`, `simulate_icio()` |
 
 The demographic functions are written from scratch. The test suite checks them against
-`DasGuptR` (Das Gupta's published examples), `LEdecomp::arriaga()` and `popbio::LTRE()` /
+`DasGuptR` (Das Gupta's published examples), `DemoDecomp::stepwise_replacement()` and
+`DemoDecomp::horiuchi()`, `LEdecomp::arriaga()` and `popbio::LTRE()` /
 `popbio::fundamental.matrix()` to 1e-6. Every decomposition's adding-up identity is also tested,
 including all four GVC methods summing to gross exports to 1e-8.
+
+`stepwise_decomp()` and `horiuchi_decomp()` give the same results as DemoDecomp. Passing
+`vectorized = TRUE` with a function that works on a matrix of parameter sets, such as
+`life_expectancy()`, evaluates all the sets in a few matrix calls. On life expectancy by age
+and by cause this is 5–42× faster than DemoDecomp (`misc/bench_stepwise_horiuchi.R`).
+
+```r
+horiuchi_decomp(life_expectancy, d0$mx, d1$mx, N = 20, vectorized = TRUE)
+```
 
 ## Installation
 

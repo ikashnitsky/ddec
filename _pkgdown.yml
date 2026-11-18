@@ -65,12 +65,15 @@ reference:
   - gvc_components
 
 - title: "Demographic Decompositions"
-  desc: "Kitagawa (1955), Das Gupta (1993), Arriaga (1984) and fixed-design LTRE (Caswell 1989)."
+  desc: "Kitagawa (1955), Das Gupta (1993), Arriaga (1984), stepwise replacement (Andreev, Shkolnikov & Begun 2002), Horiuchi, Wilmoth & Pletcher (2008) and fixed-design LTRE (Caswell 1989)."
 - contents:
   - kitagawa2
   - das_gupta_n
   - life_table
   - arriaga_decomp
+  - life_expectancy
+  - stepwise_decomp
+  - horiuchi_decomp
   - ltre_fixed
 
 - title: "Matrix Models Shared by Both Fields"

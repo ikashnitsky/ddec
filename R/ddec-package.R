@@ -82,7 +82,7 @@
 #' Caswell, H. (1989). Analysis of life table response experiments I. Decomposition of effects on population growth rate. \emph{Ecological Modelling, 46}(3-4), 221-237.
 #' @importFrom stats setNames
 #' @importFrom utils globalVariables
-#' @importFrom matrixStats rowSums2 colSums2 x_OP_y
+#' @importFrom matrixStats rowSums2 colSums2 x_OP_y colCumprods rowMeans2
 #' @importFrom data.table fread rbindlist setDT setattr data.table melt
 #' @useDynLib ddec, .registration = TRUE
 "_PACKAGE"

@@ -8,12 +8,14 @@ export(decomp)
 export(expected_time_in_state)
 export(fundamental_matrix)
 export(gvc_components)
+export(horiuchi_decomp)
 export(kitagawa2)
 export(kww)
 export(lambda_sensitivity)
 export(leontief)
 export(leontief_inverse)
 export(leontief_sensitivity)
+export(life_expectancy)
 export(life_table)
 export(load_icio)
 export(load_icio_csv)
@@ -22,6 +24,7 @@ export(numeric_sensitivity)
 export(sequential_decomp)
 export(shapley_decomp)
 export(simulate_icio)
+export(stepwise_decomp)
 export(value_added_multipliers)
 export(wwz)
 export(wwz2kww)
@@ -34,7 +37,9 @@ importFrom(data.table,
   setattr
 )
 importFrom(matrixStats,
+  colCumprods,
   colSums2,
+  rowMeans2,
   rowSums2,
   x_OP_y
 )

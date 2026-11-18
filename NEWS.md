@@ -12,6 +12,16 @@ of inter-country input-output tables side by side with demographic decomposition
   (checked against `DasGuptR`).
 * `life_table()` and `arriaga_decomp()`: direct, indirect and interaction effects of age groups on
   a difference in life expectancy (Arriaga 1984); agrees with `LEdecomp::arriaga()`.
+* `stepwise_decomp()` and `horiuchi_decomp()`: re-implementations of
+  `DemoDecomp::stepwise_replacement()` (Andreev, Shkolnikov and Begun 2002) and
+  `DemoDecomp::horiuchi()` (Horiuchi, Wilmoth and Pletcher 2008, including the `components`
+  grouping of DemoDecomp 1.14.2), with identical results. With `vectorized = TRUE` and a
+  column-vectorised `func` such as the new `life_expectancy()`, every parameter set is evaluated
+  in a few matrix calls: 5-12x faster than DemoDecomp for stepwise and 6-42x for Horiuchi on
+  life expectancy by age and by cause (`misc/bench_stepwise_horiuchi.R`). With
+  `direction = "down"`, `symmetrical = FALSE`, stepwise replacement reproduces Arriaga exactly.
+* `life_expectancy()`: e0 for one or many death-rate schedules (matrix columns), via
+  `matrixStats::colCumprods()`.
 * `ltre_fixed()`: fixed-design LTRE, sensitivity at the midpoint matrix times the change
   (Caswell 1989); agrees with `popbio::LTRE()`.
 
