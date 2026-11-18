@@ -1,0 +1,334 @@
+---
+title: "From {icio} to {ddec}: transition report"
+subtitle: "Work done so far on turning the GVC package into a demographic-decomposition package"
+date: 2026-11-18
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    code-fold: true
+    code-summary: "Code"
+    embed-resources: true
+    df-print: kable
+execute:
+  cache: false
+  warning: false
+  message: false
+bibliography: ../references.bib
+---
+
+```{r setup}
+#| include: false
+root <- if (file.exists("DESCRIPTION")) "." else ".."
+suppressPackageStartupMessages({
+  pkgload::load_all(root, quiet = TRUE)
+  library(data.table)
+  library(ggplot2)
+})
+set.seed(1)
+d0 <- subset(dk_mortality, year == 2000)
+d1 <- subset(dk_mortality, year == 2019)
+```
+
+## Summary
+
+`ddec` started as a fork of `icio` 1.0.0, an R package of four global value chain (GVC)
+decompositions of inter-country input-output tables. It is now `ddec` 0.1.0, titled
+*Demographic Decomposition Methods*. It contains:
+
+* the four GVC decompositions, **unchanged**;
+* **seven demographic decomposition methods**, written from scratch and checked against the
+  reference packages: Kitagawa, Das Gupta, Arriaga, stepwise replacement, Horiuchi,
+  fixed-design LTRE, and a generic Shapley decomposition;
+* a **bridging layer** showing that the two fields share their machinery: the Leontief inverse
+  is the fundamental matrix of an absorbing Markov chain, and LTRE and Leontief attribution are
+  the same "sensitivity × change" operation;
+* real Danish mortality data, a synthetic ICIO data generator, a Quarto report in `analysis/`,
+  `renv`, and a reference list checked against Crossref.
+
+| | |
+|---|---|
+| Branch | `init-claude`, two commits on top of `master` (`cc96859`, `e29d7df`); not pushed |
+| Size of change | 103 files, +11,092 / −368 lines; 32 files and +1,752 lines in `R/` and `tests/` |
+| Tests | 382 expectations, 0 failures, 0 skipped (cross-checks included) |
+| `R CMD check` | 0 errors, 0 warnings, 0 notes |
+| Report | `quarto render` builds `analysis/` from a clean state with no network access |
+
+## Starting point and approach
+
+`icio` is a single-purpose GVC package. Its core is `load_icio()`, which computes the Leontief
+inverse $B = (I - A)^{-1}$ once, plus `bm()`, `leontief()`, `kww()` and `wwz()`, which decompose
+gross exports. It is fast because it uses matrixStats, data.table and a small C routine
+throughout. The project brief (`ddec-jump-start.md`) asked for a package and Quarto report
+that demonstrate the overlap between GVC and demographic decompositions.
+
+The guiding decisions were:
+
+* **Keep the GVC engines verbatim.** They are tested against Stata `icio` and
+  GlobalValueChains.jl, so they were renamed into the new package rather than rewritten. The
+  ICIO object keeps its class name `"icio"`: it names the object type, not the package.
+* **No dependency on `icio`, and no compatibility shims.** This repository *is* `icio`, so
+  importing it would be circular.
+* **Write the demographic methods from scratch, and verify them against the reference
+  implementations** (DasGuptR, LEdecomp, DemoDecomp, popbio) at 1e-6 or better. Those packages
+  are in Suggests, not Imports.
+* **Make speed come from vectorising `func`.** In the generic decompositions almost all of the
+  time is spent evaluating the user's function, so the speed work targets that (see
+  [Performance](#performance)).
+
+## What was done
+
+### 1. Renaming the package
+
+DESCRIPTION, NAMESPACE, the compiled-code registration (`R_init_ddec`), the package help
+page, CITATION, pkgdown configuration, README, NEWS, the vignette (`vignettes/gvc.Rmd`),
+CLAUDE.md and the three GitHub workflows were all updated. CRAN-specific files for `icio`
+(`cran-comments.md`) were removed. The `icio` NEWS history is kept below the new
+`ddec 0.1.0` entry.
+
+### 2. Demographic decompositions
+
+```{r fun-table}
+data.table(
+  Function = c("kitagawa2()", "das_gupta_n()", "life_table()", "life_expectancy()",
+               "arriaga_decomp()", "stepwise_decomp()", "horiuchi_decomp()", "ltre_fixed()"),
+  Method = c("Rate vs composition effects", "N-factor standardisation", "Period life table",
+             "e0, vectorised over matrix columns", "Direct / indirect / interaction by age",
+             "Stepwise replacement", "Pseudo-continuous (path integral)", "Fixed-design LTRE"),
+  Reference = c("Kitagawa (1955)", "Das Gupta (1993)", "Preston et al. (2001)", "—",
+                "Arriaga (1984)", "Andreev, Shkolnikov & Begun (2002)",
+                "Horiuchi, Wilmoth & Pletcher (2008)", "Caswell (1989)"),
+  `Verified against` = c("DasGuptR (Das Gupta Example 5.1)", "DasGuptR (Example 2.3)",
+                         "LEdecomp::mx_to_e0()", "life_table()", "LEdecomp::arriaga()",
+                         "DemoDecomp::stepwise_replacement()", "DemoDecomp::horiuchi()",
+                         "popbio::LTRE()"))
+```
+
+References: @kitagawa1955, @dasgupta1993, @preston2001, @arriaga1984, @andreev2002,
+@horiuchi2008, @caswell1989.
+
+### 3. Bridging layer
+
+```{r bridge-table}
+data.table(
+  Function = c("leontief_inverse(), fundamental_matrix()", "value_added_multipliers(), expected_time_in_state()",
+               "shapley_decomp(), sequential_decomp(), all_orderings()",
+               "lambda_sensitivity(), leontief_sensitivity(), numeric_sensitivity()",
+               "gvc_components()", "simulate_icio()"),
+  Role = c("One internal (I − M)⁻¹ routine powers both: the Leontief inverse is the fundamental matrix",
+           "Output multipliers ↔ life expectancy by starting state",
+           "Order-free decomposition of any function; the order-dependent alternative; spread over all orderings",
+           "∂λ/∂A = v w′/⟨v,w⟩ and ∂(v′Be)/∂A = (v′B)′(Be)′: both outer products",
+           "All four GVC methods mapped to common categories (VAX, REF, DDC, FVA, FDC)",
+           "Small balanced synthetic ICIO tables"))
+```
+
+### 4. Data
+
+```{r data-table}
+data.table(
+  Dataset = c("dk_mortality", "icio_synth", "leather"),
+  Content = c("Denmark, both sexes, 2000 & 2019: deaths, mid-year population, mx by single age (0–94, 95+)",
+              "Two synthetic 3-country × 2-industry ICIO tables, '2010' and '2020'",
+              "3 × 3 example ICIO table (inherited)"),
+  Source = c("Eurostat demo_magec + demo_pjan; raw downloads cached in data-raw/cache/",
+             "simulate_icio(), data-raw/get_icio_data.R", "icio / decompr"),
+  Real = c("yes", "no (synthetic)", "toy"))
+```
+
+Death rates are computed as deaths divided by mid-year population, rather than taken from
+Eurostat's life tables, whose open age interval changes from 85+ to 95+ in 2014. The Human
+Mortality Database requires a login, so the data script documents the manual steps to use it
+instead.
+
+### 5. Infrastructure
+
+* **Quarto report** (`analysis/`): GVC results, demographic results, and structural
+  parallels with a concept map and a section on the limits of the analogy. It uses frozen
+  renders and a colour palette checked for colour-blind safety.
+* **`renv.lock`** with 129 packages, including the development toolchain (devtools,
+  roxygen2), because renv hides the system library. The CI workflows set
+  `RENV_ACTIVATE_PROJECT: false` so they keep installing packages as before.
+* **`references.bib`**: every DOI was checked against the Crossref API. R package entries are
+  generated from each package's `citation()`.
+
+## One change in life expectancy, decomposed five ways
+
+The methods above all answer the same demographic question in different ways. Here Denmark's
+gain in life expectancy at birth between 2000 and 2019,
+**`r sprintf("%.3f", life_expectancy(d1$mx) - life_expectancy(d0$mx))` years**, is decomposed
+by age group with each method:
+
+```{r five-ways}
+grp <- cut(d0$age, c(0, 1, 15, 45, 65, 80, Inf), right = FALSE,
+           labels = c("0", "1-14", "15-44", "45-64", "65-79", "80+"))
+agg <- function(x) tapply(as.vector(x), grp, sum)
+res <- list(
+  `Arriaga` = arriaga_decomp(d0$mx, d1$mx)$total,
+  `Stepwise, oldest ages first` = stepwise_decomp(life_expectancy, d0$mx, d1$mx, symmetrical = FALSE,
+                                                  direction = "down", vectorized = TRUE),
+  `Stepwise, symmetrical, both directions` = stepwise_decomp(life_expectancy, d0$mx, d1$mx,
+                                                             direction = "both", vectorized = TRUE),
+  `Horiuchi (N = 20)` = horiuchi_decomp(life_expectancy, d0$mx, d1$mx, N = 20, vectorized = TRUE),
+  `First order at midpoint (LTRE logic)` = {
+    mid <- (d0$mx + d1$mx) / 2
+    s <- numeric_sensitivity(matrix(mid), function(M) life_expectancy(as.vector(M)), h = 1e-7)
+    as.vector(s) * (d1$mx - d0$mx)
+  })
+tab <- rbindlist(lapply(names(res), function(n) as.data.table(as.list(c(agg(res[[n]]), total = sum(res[[n]]))))[, method := n]))
+setcolorder(tab, "method")
+tab[, lapply(.SD, function(x) if (is.numeric(x)) round(x, 3) else x)]
+```
+
+Four things stand out:
+
+* **Arriaga is stepwise replacement.** With DemoDecomp's direction convention, replacing the
+  oldest ages first reproduces Arriaga exactly.
+* **The choice of method shifts age contributions only modestly.** The order-free methods
+  (symmetrical stepwise, Horiuchi) agree with each other to about 0.003 years per age group.
+  Compared with one-directional Arriaga, they move up to about 0.1 year between age groups,
+  mostly towards ages 80+.
+* **Exactness differs.** Stepwise and Arriaga add up exactly. Horiuchi leaves a small
+  numerical residual
+  (`r sprintf("%.1e", attr(res[["Horiuchi (N = 20)"]], "residual"))` years). A single
+  derivative at the midpoint has a larger one, which is why Horiuchi integrates along the whole
+  path.
+* **This is the same order-dependence problem as in input-output analysis.** Structural
+  decomposition analysis resolves it by averaging (see `analysis/03-structural-parallels.qmd`).
+
+```{r fig-five-ways}
+#| fig-cap: "Contribution of age groups to the Danish e0 gain, 2000–2019, by decomposition method. Values are in the table above."
+#| fig-height: 4.5
+pal <- c("#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4")
+tl <- melt(tab[, !"total"], id.vars = "method", variable.name = "age_group")
+tl[, method := factor(method, levels = names(res))]
+ggplot(tl, aes(age_group, value, fill = method)) +
+  geom_col(position = position_dodge(width = 0.85), width = 0.8, colour = "white", linewidth = 0.3) +
+  scale_fill_manual(values = pal) +
+  labs(x = "Age group", y = "Contribution to Δe0 (years)", fill = NULL,
+       title = "Five decompositions of the same gain in life expectancy",
+       subtitle = "Denmark, both sexes, 2000 → 2019") +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "top", legend.justification = "left", panel.grid.minor = element_blank()) +
+  guides(fill = guide_legend(nrow = 2))
+```
+
+## Verification
+
+Every method's adding-up identity is tested. Each method is also checked against an
+independent implementation. These checks run again when this report is rendered:
+
+```{r verify}
+e0_scalar <- function(m) life_table(m)$ex[1]
+ax0 <- LEdecomp::mx_to_ax(d0$mx, age = d0$age, sex = "t")
+ax1 <- LEdecomp::mx_to_ax(d1$mx, age = d0$age, sex = "t")
+hud <- local({ e <- new.env(); utils::data("hudsonia", package = "popbio", envir = e); e$hudsonia })
+dg <- local({ e <- new.env(); utils::data("dgeg2_3", package = "DasGuptR", envir = e); e$dgeg2_3 })
+fac <- c("birth_preg", "preg_actw", "actw_prop", "w_prop")
+dgr <- suppressMessages(DasGuptR::dgnpop(dg, pop = "pop", factors = fac))
+dg_ref <- sapply(fac, function(k) dgr$rate[dgr$factor == k & dgr$pop == 1979] - dgr$rate[dgr$factor == k & dgr$pop == 1971])
+dg_ours <- das_gupta_n(as.list(dg[dg$pop == 1971, fac]), as.list(dg[dg$pop == 1979, fac]))
+chk <- data.table(
+  check = c("das_gupta_n() vs DasGuptR::dgnpop() (Das Gupta Ex. 2.3)",
+            "arriaga_decomp() vs LEdecomp::arriaga()",
+            "stepwise_decomp() vs DemoDecomp::stepwise_replacement()",
+            "horiuchi_decomp() vs DemoDecomp::horiuchi()",
+            "ltre_fixed() vs popbio::LTRE()"),
+  max_abs_difference = c(
+    max(abs(dg_ours[fac] - dg_ref)),
+    max(abs(arriaga_decomp(d0$mx, d1$mx, ax1 = ax0, ax2 = ax1)$total -
+            LEdecomp::arriaga(d0$mx, d1$mx, age = d0$age, sex1 = "t"))),
+    max(abs(stepwise_decomp(life_expectancy, d0$mx, d1$mx, direction = "both", vectorized = TRUE) -
+            DemoDecomp::stepwise_replacement(e0_scalar, d0$mx, d1$mx, direction = "both"))),
+    max(abs(horiuchi_decomp(life_expectancy, d0$mx, d1$mx, N = 10, vectorized = TRUE) -
+            DemoDecomp::horiuchi(e0_scalar, d0$mx, d1$mx, N = 10))),
+    max(abs(unclass(ltre_fixed(hud$A85, hud$A88))[1:36] - unclass(popbio::LTRE(hud$A88, hud$A85))[1:36]))))
+chk[, max_abs_difference := signif(max_abs_difference, 2)]
+chk
+```
+
+The GVC side has its own checks. The components of all four methods sum to gross exports to
+1e-8 at the country, sector and bilateral levels. Leontief domestic content equals
+Borin-Mancini's `DC`. The known bias in KWW's foreign value added shows up against BM. The
+original `icio` tests (`bm`, `wwz`, `leontief`, `load_icio`) still pass unchanged.
+
+## Performance {#performance}
+
+`stepwise_decomp()` and `horiuchi_decomp()` were written to be at least as fast as the
+DemoDecomp originals. They are much faster when the evaluated function is vectorised:
+
+* Every parameter set is built as a column of one matrix. With `vectorized = TRUE`, `func` is
+  called once (stepwise) or once per block of steps (Horiuchi), instead of thousands of times.
+* `life_expectancy()` computes e0 for all columns at once with `matrixStats::colCumprods()` and
+  `colSums2()`, the same tools `icio` uses for speed.
+* Horiuchi writes each half-step perturbation only into the entries of its own component,
+  instead of adding a large, mostly-zero matrix.
+* Stepwise evaluates the two end points once, not once per direction.
+
+```{r bench}
+timeit <- function(expr, reps = 3L, inner = 5L) {
+  e <- substitute(expr); env <- parent.frame()
+  stats::median(vapply(seq_len(reps), function(i)
+    system.time(for (k in seq_len(inner)) eval(e, env))[["elapsed"]] / inner, numeric(1)))
+}
+data("Mxc1", package = "DemoDecomp", envir = environment()); data("Mxc2", package = "DemoDecomp", envir = environment())
+age_id <- rep(seq_len(nrow(Mxc1)), ncol(Mxc1)); nx_abr <- c(1, 4, rep(5, 17))
+cod_s <- function(v) life_expectancy(rowsum(v, age_id, reorder = FALSE), nx = nx_abr)
+cod_v <- function(M) life_expectancy(rowsum(M, age_id, reorder = FALSE), nx = nx_abr)
+q1 <- c(Mxc1); q2 <- c(Mxc2); e0s <- function(m) life_expectancy(m)
+bench <- rbind(
+  data.table(case = "e0, 96 ages", method = "stepwise (both, symmetrical)",
+             DemoDecomp = timeit(DemoDecomp::stepwise_replacement(e0s, d0$mx, d1$mx, direction = "both")),
+             ddec_vectorized = timeit(stepwise_decomp(e0s, d0$mx, d1$mx, direction = "both", vectorized = TRUE))),
+  data.table(case = "e0, 96 ages", method = "Horiuchi (N = 20)",
+             DemoDecomp = timeit(DemoDecomp::horiuchi(e0s, d0$mx, d1$mx, N = 20), inner = 1L),
+             ddec_vectorized = timeit(horiuchi_decomp(e0s, d0$mx, d1$mx, N = 20, vectorized = TRUE))),
+  data.table(case = "e0 by cause, 114 parameters", method = "stepwise (both, symmetrical)",
+             DemoDecomp = timeit(DemoDecomp::stepwise_replacement(cod_s, q1, q2, direction = "both")),
+             ddec_vectorized = timeit(stepwise_decomp(cod_v, q1, q2, direction = "both", vectorized = TRUE))),
+  data.table(case = "e0 by cause, 114 parameters", method = "Horiuchi (N = 20)",
+             DemoDecomp = timeit(DemoDecomp::horiuchi(cod_s, q1, q2, N = 20), inner = 1L),
+             ddec_vectorized = timeit(horiuchi_decomp(cod_v, q1, q2, N = 20, vectorized = TRUE))))
+bench[, speedup := round(DemoDecomp / ddec_vectorized, 1)]
+bench[, `:=`(DemoDecomp = signif(DemoDecomp, 3), ddec_vectorized = signif(ddec_vectorized, 3))]
+setnames(bench, c("DemoDecomp", "ddec_vectorized"), c("DemoDecomp (s)", "ddec, vectorized (s)"))
+bench
+```
+
+Timings are from the machine that rendered this report. With an ordinary function that takes
+one parameter vector, `ddec` runs at the same speed as DemoDecomp, because calling the function
+is the whole cost. The full benchmark is in `misc/bench_stepwise_horiuchi.R`.
+
+## Problems found and fixed during the work
+
+| Problem | How it was found | Fix |
+|---|---|---|
+| The report's IO sensitivity used the full value-added vector while the statistic summed only country C1's rows; the first-order error showed as −592% | checking the rendered numbers against the exact change | mask `v` and `e` to C1 before calling `leontief_sensitivity()`; noted in CLAUDE.md |
+| Claim that one-directional stepwise "young to old" equals Arriaga | a test failed by 0.019 years | it is `direction = "down"` (oldest ages first) under DemoDecomp's convention; docs and tests corrected |
+| A cached Quarto `setup` chunk skipped `load_all()` on re-render | render error | setup chunks set to `cache: false` |
+| popbio's built-in matrices are not substochastic (column sums > 1) | cross-check error | test uses a valid stage matrix |
+| DESCRIPTION `URL` was missing the pkgdown site address | `pkgdown::check_pkgdown()` | URL added |
+| Report text overstated how closely LTRE and Shapley agree for *Hudsonia* (they differ by up to about 14% by group) | rechecking the rendered table | figure caption rewritten |
+
+## Open items
+
+1. **Authors.** The edited DESCRIPTION no longer lists Bastiaan Quast, Fei Wang, Victor
+   Stolzenburg or Oliver Reiter, but their GVC code is still in the package (`wwz()` and
+   `leontief()` credit them), and `inst/CITATION` still names Quast. GPL practice and CRAN
+   policy both expect authors of included code to be listed.
+2. **DESCRIPTION text vs the new title.** The title is now *Demographic Decomposition Methods*,
+   but the Description still describes the trade-and-demography framing, and does not mention
+   stepwise replacement or Horiuchi.
+3. **CI has not run.** The branch is not pushed. The renv-related workflow changes will be
+   tested by the first run.
+4. **Possible next steps for the demographic focus:**
+   * cause-of-death variants of Arriaga, and cause × age output for Horiuchi and stepwise
+     (`components =` already supports grouping);
+   * vectorised versions of other common outcomes (TFR, healthy life expectancy, life-table
+     entropy);
+   * HMD data as an optional source;
+   * symmetrised Arriaga, for parity with LEdecomp's `arriaga_sym()`;
+   * deciding whether the GVC code stays at the core of a demography-focused package or moves
+     to a companion package.
+
+## References
