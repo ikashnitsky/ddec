@@ -4,39 +4,48 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-`icio` is an R package (v1.0.0, GPL-3) implementing four global value chain (GVC)
-decompositions of gross exports from inter-country input-output (ICIO) tables:
-Borin-Mancini (2019), Leontief (Hummels-Ishii-Yi 2001), KWW (Koopman-Wang-Wei 2014), and
-WWZ (Wang-Wei-Zhu 2013). `bm()` is the recommended method and reproduces the Stata `icio`
-command; it is the 1:1 R counterpart of `decompose()` in
-[GlobalValueChains.jl](https://github.com/SebKrantz/GlobalValueChains.jl) (Julia, checked out
-locally at `~/Documents/Julia/ICIO.jl` — the directory kept the old name).
+`ddec` is an R package (v0.1.0, GPL-3) that sets two families of decompositions side by side:
 
-The package is derived from `decompr`, whose maintainer went inactive. `decompr`'s last CRAN
-release was 6.9.0; its 7.0.0 (full `bm()` variant surface) and 8.0.0 (object reduction) were
-developed but never published, so `icio 1.0.0`'s NEWS is written against 6.9.0.
-The git working directory is still named `decompr`; the package inside it is `icio`. There is
-**no backwards compatibility with `decompr`** — do not add compatibility shims or aliases.
+- **GVC decompositions** of gross exports from inter-country input-output (ICIO) tables:
+  Borin-Mancini (2019), Leontief (Hummels-Ishii-Yi 2001), KWW (Koopman-Wang-Wei 2014) and WWZ
+  (Wang-Wei-Zhu 2013). This code is a fork of the `icio` package (Krantz & Quast). `bm()`
+  reproduces the Stata `icio` command and is the 1:1 R counterpart of `decompose()` in
+  [GlobalValueChains.jl](https://github.com/SebKrantz/GlobalValueChains.jl).
+- **Demographic decompositions** written from scratch: Kitagawa, Das Gupta, Arriaga and
+  fixed-design LTRE.
+- **A bridging layer**: Leontief inverse = fundamental matrix, a generic Shapley decomposition,
+  and sensitivities (lambda and Leontief), all of which are outer products.
+
+The project brief is the user's `ddec-jump-start.md`. The Quarto report in `analysis/` is the
+deliverable that shows the parallels. There is **no backwards compatibility with `icio` or
+`decompr`**, so do not add shims or aliases. The class of the ICIO object is still `"icio"`
+(`load_icio()`); that is the object type, not the package name.
 
 ## Commands
 
-All from the package root. `devtools`/`roxygen2` are the expected toolchain (they are not
-declared in `DESCRIPTION`).
+All from the package root. `renv` is active (`.Rprofile`). `renv.lock` uses
+`snapshot.type = "all"` and includes the dev toolchain (`devtools`, `roxygen2`), because the renv
+sandbox hides the system library.
 
 ```r
+renv::restore()           # exact package versions
 devtools::load_all()      # load with C code compiled
 devtools::document()      # regenerate man/*.Rd and NAMESPACE from roxygen comments
 devtools::test()          # run the testthat suite
 devtools::check()         # full R CMD check (what CI runs)
-devtools::build_vignettes()
-pkgdown::build_site()
 ```
 
 ```sh
-R CMD build . && R CMD check --as-cran icio_1.0.0.tar.gz
+quarto render                                # the report: analysis/*.qmd -> _site/
+Rscript data-raw/get_demo_data.R             # rebuild data/dk_mortality.rda (uses data-raw/cache/)
+Rscript data-raw/get_icio_data.R             # rebuild data/icio_synth.rda
 Rscript -e 'devtools::test(filter = "bm")'   # single test file (tests/testthat/test_bm.R)
 Rscript misc/validate_bm_emerging.R          # local-only: bm() vs Julia on real ICIO data
 ```
+
+The Quarto pages `source("analysis/_setup.R")`, which calls `pkgload::load_all(".")`
+(`execute-dir: project`). That setup chunk must stay `cache: false`. If it is cached, a cached
+re-render skips `load_all()` and the package functions go missing.
 
 `NAMESPACE` and everything under `man/` are roxygen-generated — never hand-edit them; edit the
 roxygen block above the function and re-run `devtools::document()`. Renaming anything that
@@ -45,6 +54,25 @@ roxygen block above the function and re-run `devtools::document()`. Renaming any
 
 CI (`.github/workflows/`): `R-CMD-check` on Windows/macOS(release+devel)/Ubuntu, `test-coverage`,
 and `pkgdown` deploy — all on push/PR to `master`.
+
+## Demography and bridging layer
+
+| File | Exports | Notes |
+|---|---|---|
+| [R/utils.R](R/utils.R) | — | `.inverse_I_minus()` is the single routine behind both `leontief_inverse()` and `fundamental_matrix()` |
+| [R/leontief_inverse.R](R/leontief_inverse.R) | `leontief_inverse()`, `value_added_multipliers()` | |
+| [R/markov_fundamental.R](R/markov_fundamental.R) | `fundamental_matrix()`, `expected_time_in_state()` | Caswell's column convention, `U[i, j] = P(j -> i)`, like `A` |
+| [R/shapley.R](R/shapley.R) | `shapley_decomp()`, `sequential_decomp()`, `all_orderings()` | evaluates `f` on all 2^K subsets (bitmasks); `groups =` splits one parameter into several players |
+| [R/kitagawa.R](R/kitagawa.R) | `kitagawa2()`, `das_gupta_n()` | `das_gupta_n()` is a thin wrapper around `shapley_decomp()` |
+| [R/arriaga.R](R/arriaga.R) | `life_table()`, `arriaga_decomp()` | defaults to `ax = nx/2`; pass `ax` to match LEdecomp's Andreev-Kingkade a0 |
+| [R/ltre.R](R/ltre.R) | `ltre_fixed()`, `lambda_sensitivity()`, `leontief_sensitivity()`, `numeric_sensitivity()` | midpoint-matrix sensitivity × change, as in `popbio::LTRE()` |
+| [R/gvc_components.R](R/gvc_components.R) | `gvc_components()` | all four GVC methods mapped onto VAX/REF/DDC/FVA/FDC (Leontief: DC/FC) |
+| [R/simulate_icio.R](R/simulate_icio.R) | `simulate_icio()` | balanced synthetic `iot` tables |
+
+The tests cross-check against `DasGuptR`, `LEdecomp` and `popbio` (in Suggests, guarded with
+`skip_if_not_installed()`) to 1e-6. `leontief_sensitivity(A, v, e)` differentiates the **full**
+sum `v'(I-A)^-1 e`. To attribute a single country's domestic content, mask `v` (and `e`) to that
+country's rows first.
 
 ## Architecture
 
@@ -132,15 +160,17 @@ Term columns are UPPER-CASE by convention here (the other decompositions use mix
 ### C code
 
 [src/rowmult.c](src/rowmult.c) contains a single routine, `C_rowmult(x, v)` = column-scaling of a
-matrix (`t(t(x) * v)`), registered via `R_init_icio` with `R_forceSymbols(TRUE)` — call it as
+matrix (`t(t(x) * v)`), registered via `R_init_ddec` with `R_forceSymbols(TRUE)` — call it as
 `.Call(C_rowmult, ...)`, not by string name. Used in `load_icio()` and `wwz()`.
 `matrixStats::rowSums2`/`colSums2` are used throughout for the same reason (avoiding copies on
 large ICIO tables, which run to thousands of rows).
 
 ## Testing
 
-`tests/testthat/` covers `load_icio`/`load_icio_csv`, `leontief`, `wwz`, and `bm` against the 3×3
-`leather` toy table. The `bm` tests are the model to follow for new work: output dimensions,
+`tests/testthat/` covers the GVC code (`load_icio`/`load_icio_csv`, `leontief`, `wwz`, `bm`,
+`gvc_components`) against the 3×3 `leather` table and `icio_synth`, plus the demographic and
+bridging functions (`test_kitagawa.R`, `test_arriaga.R`, `test_ltre.R`, `test_shapley.R`,
+`test_matrix_models.R`). The `bm` tests are the model to follow for new work: output dimensions,
 **accounting identities** (`GEXP = DC + FC`, `DC = DVA + DDC`, `DVA = VAX + REF`,
 `GIMP = VA + DC`), **additivity** (bilateral sums to sector sums to country), cross-engine
 anchors, and error paths for invalid option combinations. Ground truth beyond identities is
@@ -153,4 +183,5 @@ its own `.internal.selfref` pointer — use `expect_equal()`.
 
 ## Not part of the build
 
-`.Rbuildignore` excludes `misc/`, `pkgdown/`, `.github/`, `CLAUDE.md` and `cran-comments.md`.
+`.Rbuildignore` excludes `misc/`, `pkgdown/`, `.github/`, `CLAUDE.md`, `renv/`, `analysis/`,
+`data-raw/`, the Quarto config and outputs, and `references.bib`.

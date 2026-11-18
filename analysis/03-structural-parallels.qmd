@@ -1,0 +1,309 @@
+---
+title: "Structural parallels"
+---
+
+```{r setup}
+#| cache: false
+source("analysis/_setup.R")
+d0 <- as.data.table(dk_mortality)[year == 2000]
+d1 <- as.data.table(dk_mortality)[year == 2019]
+m10 <- load_icio(icio_synth[["2010"]])
+m20 <- load_icio(icio_synth[["2020"]])
+```
+
+This page covers four claims, each backed by code:
+
+1. The Leontief inverse is the fundamental matrix of an absorbing Markov chain.
+2. Multi-factor decompositions are not unique, and both fields fix this the same way: by
+   averaging over all orderings (Shapley).
+3. LTRE and Leontief-based attribution are the same operation, sensitivity × change. The two
+   sensitivities even have the same form.
+4. The concepts map one-to-one onto each other.
+
+## 1. One matrix inverse behind both fields
+
+`leontief_inverse()` and `fundamental_matrix()` call the same internal routine,
+$M \mapsto (I - M)^{-1}$. It exists when the spectral radius of $M$ is below 1, which is also
+when the Neumann series $I + M + M^2 + \dots$ converges. Both fields use the column convention.
+$A_{ij}$ is the input from sector $i$ per unit of output of sector $j$, and $U_{ij}$ is the
+probability of moving from state $j$ to state $i$.
+
+```{r iso}
+# An absorbing Markov chain: three living states; death is absorbing (column shortfall)
+U <- matrix(c(0.85, 0.05, 0.00,
+              0.08, 0.80, 0.05,
+              0.02, 0.10, 0.85), 3, byrow = TRUE,
+            dimnames = list(to = c("healthy", "ill", "disabled"), from = c("healthy", "ill", "disabled")))
+# A small input-output system: three sectors
+A <- matrix(c(0.15, 0.25, 0.05,
+              0.20, 0.05, 0.40,
+              0.10, 0.20, 0.10), 3, byrow = TRUE,
+            dimnames = list(supplier = c("agri", "manuf", "services"), user = c("agri", "manuf", "services")))
+N <- fundamental_matrix(U)
+B <- leontief_inverse(A)
+identical(fundamental_matrix(U), leontief_inverse(U))   # literally the same computation
+```
+
+::: {layout-ncol=2}
+```{r iso-N}
+#| tbl-cap: "Fundamental matrix N: expected years in state i (row), starting from state j (column). The total row is life expectancy by starting state."
+round(expected_time_in_state(U), 2)
+```
+
+```{r iso-B}
+#| tbl-cap: "Leontief inverse B: output of sector i (row) needed per unit of final demand for sector j (column). The total row gives the output multipliers."
+round(rbind(B, total = colSums(B)), 3)
+```
+:::
+
+| | Absorbing Markov chain | Input-output model |
+|---|---|---|
+| Matrix | $U$: transitions among transient states | $A$: input coefficients |
+| Leakage | $1 - \mathbf{1}'U$: death | $1 - \mathbf{1}'A$: value added |
+| $(I - M)^{-1}$ | $N$: expected visits | $B$: total requirements |
+| $\mathbf 1'(I-M)^{-1}$ | life expectancy by starting state | output multipliers |
+| leakage × inverse | $(1 - \mathbf 1'U) N = \mathbf 1'$: everyone dies eventually | $v'B = \mathbf 1'$: all final demand becomes value added |
+
+The last row is the identity that makes Leontief decompositions of exports add up. In the
+chain it says that absorption is certain:
+
+```{r leak}
+rbind(death_x_N = (1 - colSums(U)) %*% N, va_x_B = (1 - colSums(A)) %*% B)
+```
+
+An ordinary life table is the special case with one transient state per age and survival
+probabilities on the subdiagonal. With $a_x = 1/2$, the chain reproduces period life expectancy
+exactly, as $e_0 = \mathbf 1'N e_1 - \tfrac12$:
+
+```{r lt-markov}
+lt <- life_table(d1$mx, ax = rep(0.5, nrow(d1)))
+n <- nrow(lt); Ulx <- matrix(0, n, n)
+Ulx[cbind(2:n, 1:(n - 1))] <- 1 - lt$qx[-n]
+c(life_table_e0 = lt$ex[1],
+  markov_e0 = unname(expected_time_in_state(Ulx, start = c(1, rep(0, n - 1)), correction = 0.5)["total"]))
+```
+
+## 2. Shapley on both sides: sequential decompositions depend on the order
+
+If an outcome depends on $K$ factors, switching them one at a time from their old to their new
+values always adds up. The size of each factor's effect, however, depends on the order in which
+the factors are switched. Das Gupta's standardisation [@dasgupta1993] and the
+"average of all polar decompositions" in structural decomposition analysis
+[@dietzenbacher1998] both average over all $K!$ orderings. That average is the Shapley value
+[@shapley1953; @shorrocks2013], which `shapley_decomp()` computes for any function.
+
+**(a) Demography.** The Danish crude death rate is $f(m, c) = \sum_x m_x c_x$, with age-specific
+rates $m$ and age composition $c$. As a second example we use Das Gupta's four-factor birth rate.
+
+**(b) Trade.** The domestic content of country C1's exports is
+$f(v, A, e) = \sum_{i \in C1} v_i\, [(I-A)^{-1} e^{C1}]_i$, which depends on the value-added
+coefficients $v$, the technology $A$ and the export vector $e^{C1}$. We split $A$ into
+domestic and foreign input blocks, which gives four players. Data: the synthetic tables,
+2010 → 2020.
+
+```{r shapley-setup}
+# (a) CDR, two players
+cdr <- function(p) sum(p$m * p$c)
+x0 <- list(m = d0$mx, c = d0$pop / sum(d0$pop)); x1 <- list(m = d1$mx, c = d1$pop / sum(d1$pop))
+# (a') Das Gupta Example 2.3, four players
+dg <- function(p) p$birth_preg * p$preg_actw * p$actw_prop * p$w_prop
+f71 <- list(birth_preg = 25.3, preg_actw = 0.214, actw_prop = 0.279, w_prop = 0.949)
+f79 <- list(birth_preg = 32.7, preg_actw = 0.290, actw_prop = 0.473, w_prop = 0.986)
+# (b) domestic content of C1's exports, four players
+c1 <- seq_len(m10$N)
+dc_c1 <- function(p) { e <- p$e; e[-c1] <- 0; sum((p$v * solve(diag(length(e)) - p$A, e))[c1]) }
+io <- function(m) list(v = unname(m$Vc), A = unname(m$A), e = unname(m$E))
+dom <- outer(rep(m10$k, each = m10$N), rep(m10$k, each = m10$N), "==")
+grp <- list(v = rep("v (VA coefficients)", m10$GN),
+            A = ifelse(dom, "A domestic", "A foreign"),
+            e = rep("e (exports)", m10$GN))
+```
+
+```{r shapley-results}
+s_cdr <- shapley_decomp(cdr, x0, x1)
+s_dg  <- shapley_decomp(dg, f71, f79)
+s_io  <- shapley_decomp(dc_c1, io(m10), io(m20), groups = grp)
+check <- function(s, label) data.table(case = label, players = length(s), f_change = attr(s, "f2") - attr(s, "f1"),
+                                       sum_shapley = sum(s), gap = sum(s) - (attr(s, "f2") - attr(s, "f1")))
+rbind(check(s_cdr, "Danish CDR"), check(s_dg, "Das Gupta birth rate"), check(s_io, "C1 domestic content"))
+```
+
+**Order independence.** Listing the players in a different order gives identical Shapley
+values:
+
+```{r order-indep}
+rev_grp <- grp[c("e", "A", "v")]
+s_io_rev <- shapley_decomp(dc_c1, io(m10)[c("e", "A", "v")], io(m20)[c("e", "A", "v")], groups = rev_grp)
+all.equal(as.vector(s_io[names(s_io_rev)]), as.vector(s_io_rev))
+```
+
+**Sequential decompositions do depend on the order.** `all_orderings()` lists each player's
+effect under every ordering:
+
+```{r orderings}
+ao <- rbind(
+  all_orderings(cdr, x0, x1)[, case := "(a) Danish crude death rate, per 1000"][
+    , `:=`(effect = 1000 * effect, shapley = 1000 * shapley)],
+  all_orderings(dg, f71, f79)[, case := "(a') Das Gupta birth rate"],
+  all_orderings(dc_c1, io(m10), io(m20), groups = grp)[, case := "(b) Domestic content of C1 exports"])
+ao[, case := factor(case, levels = unique(case))]
+spread <- ao[, .(orderings = .N, min = min(effect), max = max(effect), shapley = shapley[1]), by = .(case, player)]
+spread[, lapply(.SD, function(x) if (is.numeric(x)) round(x, 4) else x)]
+```
+
+```{r fig-orderings}
+#| fig-cap: "Each player's sequential-substitution effect under every ordering (grey points), and its Shapley value, the mean over orderings (blue diamond). The spread of the grey points shows how much a one-ordering decomposition depends on an arbitrary choice."
+#| fig-height: 6
+ggplot(ao, aes(x = effect, y = player)) +
+  geom_vline(xintercept = 0, colour = "#c3c2b7", linewidth = 0.4) +
+  geom_point(colour = ink2, alpha = 0.45, size = 2.2) +
+  geom_point(data = spread, aes(x = shapley), colour = pal[1], shape = 18, size = 4.5) +
+  facet_wrap(~case, ncol = 1, scales = "free") +
+  labs(x = "Effect of switching the player from old to new values", y = NULL,
+       title = "Sequential effects depend on the ordering; Shapley values do not",
+       subtitle = "Grey: one point per ordering. Blue: Shapley value (mean over all orderings)")
+```
+
+With two players, the Shapley value is exactly Kitagawa's midpoint formula:
+
+```{r kitagawa-shapley}
+k <- kitagawa2(d0$mx, d1$mx, d0$pop, d1$pop)
+c(shapley_rate = 1000 * unname(s_cdr["m"]), kitagawa_rate = 1000 * sum(k$rate),
+  shapley_comp = 1000 * unname(s_cdr["c"]), kitagawa_comp = 1000 * sum(k$composition))
+```
+
+## 3. Sensitivity × change: LTRE and Leontief attribution
+
+Both fields also have a first-order alternative to Shapley: weight each entry's change by the
+derivative of the outcome, evaluated at the midpoint. In demography this is the LTRE
+[@caswell1989]. In input-output analysis it is the differential form of structural
+decomposition analysis. The two sensitivities are both outer products:
+
+$$
+\frac{\partial \lambda}{\partial a_{ij}} = \frac{v_i\, w_j}{\langle v, w\rangle}
+\qquad\qquad
+\frac{\partial\, v'(I-A)^{-1}e}{\partial a_{ij}} = (v'B)_i\, (Be)_j .
+$$
+
+The reproductive value $v$ (what one individual in stage $i$ is worth to future growth)
+corresponds to the value-added multiplier $v'B$. The stable stage structure $w$ (how much of the
+population passes through stage $j$) corresponds to gross output $Be$.
+
+We compare the first-order attribution with the exact Shapley attribution over the same groups
+of entries. For the *Hudsonia* projection matrices (1985 → 1988), the groups are
+fecundity, stasis, growth and retrogression. For the ICIO tables (2010 → 2020, $A$ only, $v$
+and $e$ held at 2010), the groups are the input blocks by supplying country.
+
+```{r sens}
+h <- local({ e <- new.env(); utils::data("hudsonia", package = "popbio", envir = e); e$hudsonia })
+L85 <- unname(h$A85); L88 <- unname(h$A88); ns <- nrow(L85)
+ij <- expand.grid(i = seq_len(ns), j = seq_len(ns))
+type <- matrix(with(ij, ifelse(i == 1 & j > 1, "fecundity", ifelse(i == j, "stasis",
+                     ifelse(i > j, "growth", "retrogression")))), ns)
+lam <- function(M) max(Re(eigen(M, only.values = TRUE)$values))
+C_lam <- ltre_fixed(L85, L88)
+sh_lam <- shapley_decomp(lam, L85, L88, groups = type)
+
+# v and e held at 2010; only C1's value added and C1's exports enter (masked vectors)
+v10 <- unname(m10$Vc); v10[-c1] <- 0
+e10 <- unname(m10$E);  e10[-c1] <- 0
+dc_A <- function(M) sum(v10 * solve(diag(nrow(M)) - M, e10))
+supplier <- matrix(paste("inputs from", rep(m10$k, each = m10$N)), m10$GN, m10$GN)
+C_io <- ltre_fixed(unname(m10$A), unname(m20$A), stat = dc_A,
+                   sensitivity = function(M) leontief_sensitivity(M, v10, e10))
+sh_io <- shapley_decomp(dc_A, unname(m10$A), unname(m20$A), groups = supplier)
+
+cmp <- rbind(
+  data.table(case = "Population growth rate λ (Hudsonia)", group = names(sh_lam),
+             first_order = tapply(as.vector(C_lam), as.vector(type), sum)[names(sh_lam)],
+             shapley = as.vector(sh_lam)),
+  data.table(case = "Domestic content of C1 exports (A only)", group = names(sh_io),
+             first_order = tapply(as.vector(C_io), as.vector(supplier), sum)[names(sh_io)],
+             shapley = as.vector(sh_io)))
+cmp[, difference := first_order - shapley]
+cmp[, lapply(.SD, function(x) if (is.numeric(x)) signif(x, 4) else x)]
+```
+
+```{r sens-totals}
+data.table(case = unique(cmp$case),
+           exact_change = c(attr(C_lam, "exact"), attr(C_io, "exact")),
+           sum_first_order = c(sum(C_lam), sum(C_io)),
+           first_order_error = c(attr(C_lam, "error"), attr(C_io, "error")),
+           relative_error_pct = 100 * c(attr(C_lam, "error") / attr(C_lam, "exact"),
+                                        attr(C_io, "error") / attr(C_io, "exact")))
+```
+
+```{r fig-sens}
+#| fig-cap: "First-order (sensitivity × change) and exact Shapley attributions over the same groups of matrix entries. They agree closely for the input-output technology change (first-order total off by 0.4%). For Hudsonia, whose vital rates change a lot between 1985 and 1988, they agree less well: group attributions differ by up to about 14% and the total misses by about 2%. The Shapley values always add up exactly."
+#| fig-height: 5
+cmp[, case := factor(case, levels = unique(case))]
+cl <- melt(cmp, id.vars = c("case", "group"), measure.vars = c("first_order", "shapley"),
+           variable.name = "method")
+cl[, method := factor(method, c("first_order", "shapley"), c("First order (LTRE / SDA)", "Shapley (exact)"))]
+ggplot(cl, aes(x = value, y = group, fill = method)) +
+  geom_vline(xintercept = 0, colour = "#c3c2b7", linewidth = 0.4) +
+  geom_col(position = position_dodge(width = 0.75), width = 0.65, colour = "white", linewidth = 0.4) +
+  facet_wrap(~case, ncol = 1, scales = "free") +
+  scale_fill_manual(values = pal[1:2]) +
+  labs(x = "Contribution to the change", y = NULL,
+       title = "Two attributions of a change in a matrix-model output",
+       subtitle = "Population projection matrix (top) and input-output technology (bottom)")
+```
+
+## 4. Mapping table
+
+```{r mapping}
+#| tbl-cap: "Concept map between GVC / input-output decompositions and demographic decompositions, with the ddec function that implements each concept."
+data.table(
+  `Input-output / GVC` = c(
+    "Input coefficient matrix A", "Leontief inverse B = (I − A)⁻¹", "Value added v = 1 − 1'A",
+    "Output multipliers 1'B", "v'B = 1' (exports fully allocated to VA origins)",
+    "Technology vs final-demand-structure effects (SDA)", "Polar / sequential decompositions",
+    "Average of all n! polar decompositions", "Differential SDA: ∂f/∂A × ΔA",
+    "∂(v'Be)/∂A = (v'B)'(Be)'", "Double counting in gross exports",
+    "Domestic content of exports"),
+  `Demography` = c(
+    "Transient transition matrix U", "Fundamental matrix N = (I − U)⁻¹", "Death (absorption) 1 − 1'U",
+    "Life expectancy by starting state 1'N", "(1 − 1'U)N = 1' (everyone dies)",
+    "Rate vs composition effects (Kitagawa)", "Stepwise replacement",
+    "Das Gupta standardisation", "LTRE: ∂λ/∂A × ΔA",
+    "∂λ/∂A = v w' / ⟨v, w⟩", "(no analogue: a person is counted once)",
+    "Years lived in a state"),
+  `ddec` = c(
+    "load_icio()$A", "leontief_inverse() = fundamental_matrix()", "value_added_multipliers()",
+    "expected_time_in_state()", "value_added_multipliers()",
+    "kitagawa2()", "sequential_decomp()",
+    "das_gupta_n() / shapley_decomp()", "ltre_fixed()",
+    "leontief_sensitivity() / lambda_sensitivity()", "bm(), kww(), wwz()",
+    "leontief(), gvc_components()"))
+```
+
+## Limits and divergences
+
+The parallels are real, but the fields use them for different purposes:
+
+* **Tracing vs comparison.** GVC decompositions are *accounting* exercises within a single
+  table. They trace where the value in one flow comes from, through a network, and need no
+  counterfactual. Demographic decompositions (Kitagawa, Das Gupta, Arriaga, LTRE) compare
+  *two* states and attribute the difference to factors, which is inherently counterfactual.
+  Structural decomposition analysis is the input-output technique that corresponds to them; the
+  KWW, WWZ and BM decompositions are not.
+* **Double counting has no demographic analogue.** In gross trade flows the same value added
+  can cross borders several times, and most of the work in KWW, WWZ and BM is deciding where to
+  record it (source vs sink, exporter vs world perspective). A person-year in a life table is
+  counted once.
+* **Linearity.** The Leontief model is linear in final demand, so attribution to final demand
+  is exact and unique. Non-uniqueness only appears when $A$ or $v$ also change. Life
+  expectancy and $\lambda$ are nonlinear in the rates, so every demographic decomposition
+  needs an approximation (first order, Arriaga's sequential split) or an averaging rule
+  (Shapley, Horiuchi's continuous path [@horiuchi2008]).
+* **Arriaga is sequential.** Its age contributions depend on the direction of comparison. It
+  is exact in total but not symmetric, unlike Shapley or the symmetrised Arriaga variants in
+  `LEdecomp`.
+* **Cost.** Exact Shapley needs $2^K$ evaluations, which is cheap for a few factors or groups
+  but impossible for every cell of a large ICIO table. That is why first-order (LTRE /
+  differential SDA) attributions remain useful in practice. The comparison above shows they are
+  accurate when changes are moderate.
+* **Kitagawa and Oaxaca-Blinder.** The Kitagawa decomposition is also linked to the
+  Oaxaca-Blinder decomposition of mean differences in economics [@oaxaca2025], which is a third
+  member of the same family.

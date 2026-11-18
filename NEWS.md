@@ -1,4 +1,40 @@
-# icio 1.0.0
+# ddec 0.1.0
+
+First release of **ddec**, a fork of the `icio` package (1.0.0) that sets GVC decompositions
+of inter-country input-output tables side by side with demographic decompositions. The GVC code
+(`load_icio()`, `load_icio_csv()`, `bm()`, `leontief()`, `kww()`, `wwz()`, `wwz2kww()`,
+`decomp()`) is inherited unchanged; its history is kept below.
+
+## New: demographic decompositions
+
+* `kitagawa2()`: rate and composition effects for a difference in crude rates (Kitagawa 1955).
+* `das_gupta_n()`: Das Gupta's (1993) N-factor decomposition; reproduces his book examples
+  (checked against `DasGuptR`).
+* `life_table()` and `arriaga_decomp()`: direct, indirect and interaction effects of age groups on
+  a difference in life expectancy (Arriaga 1984); agrees with `LEdecomp::arriaga()`.
+* `ltre_fixed()`: fixed-design LTRE, sensitivity at the midpoint matrix times the change
+  (Caswell 1989); agrees with `popbio::LTRE()`.
+
+## New: bridging layer
+
+* `leontief_inverse()`, `value_added_multipliers()`, `fundamental_matrix()` and
+  `expected_time_in_state()`: the Leontief inverse and the fundamental matrix of an absorbing
+  Markov chain are computed by the same internal routine.
+* `shapley_decomp()`, `sequential_decomp()` and `all_orderings()`: order-independent (Shapley)
+  decomposition of a change in any function, the order-dependent alternative, and the spread of
+  effects over all orderings.
+* `lambda_sensitivity()`, `leontief_sensitivity()` and `numeric_sensitivity()`: sensitivities of
+  the population growth rate and of value added in exports to matrix entries, both outer products.
+* `gvc_components()`: all four GVC decompositions in one tidy table with harmonised categories.
+* `simulate_icio()`: small, balanced synthetic ICIO tables.
+
+## New data
+
+* `dk_mortality`: Danish deaths, mid-year population and death rates by single age, 2000 and 2019
+  (Eurostat).
+* `icio_synth`: two synthetic 3-country × 2-industry ICIO tables ("2010", "2020").
+
+# icio 1.0.0 (inherited)
 
 First release of **icio**, a rename and consolidation of the CRAN package
 [**decompr**](https://cran.r-project.org/package=decompr) (Quast and Kummritz 2015), whose

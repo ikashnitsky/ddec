@@ -11,3 +11,12 @@ kww_experimental.R
 
 .DS_Store
 docs/
+
+/.quarto/
+**/*.quarto_ipynb
+
+# Quarto
+/.quarto/
+/_site/
+analysis/*_cache/
+analysis/*_files/

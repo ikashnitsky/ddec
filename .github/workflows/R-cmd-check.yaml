@@ -25,6 +25,7 @@ jobs:
 
     env:
       R_REMOTES_NO_ERRORS_FROM_WARNINGS: true
+      RENV_ACTIVATE_PROJECT: false
 
     steps:
       - uses: actions/checkout@v4

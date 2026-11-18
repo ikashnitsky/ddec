@@ -67,7 +67,7 @@ wwz(m)
 Wang, Zhi, Shang-Jin Wei, and Kunfu Zhu (2013). Quantifying international production sharing at the bilateral and sector levels (No. w19677). \emph{National Bureau of Economic Research}.
 }
 \seealso{
-\code{\link{bm}}, \code{\link{kww}}, \code{\link{wwz2kww}}, \code{\link{icio-package}}
+\code{\link{bm}}, \code{\link{kww}}, \code{\link{wwz2kww}}, \code{\link{ddec-package}}
 }
 \author{
 Bastiaan Quast

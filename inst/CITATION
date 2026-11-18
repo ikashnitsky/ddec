@@ -1,18 +1,19 @@
 bibentry(bibtype     = "Manual",
-         title       = "icio: Global Value Chain Decomposition of Inter-Country Input-Output Tables",
-         author      = c(person("Sebastian", "Krantz"),
+         title       = "ddec: Decomposition Methods Across Trade and Demography",
+         author      = c(person("Ilya", "Kashnitsky"),
+                         person("Sebastian", "Krantz"),
                          person("Bastiaan", "Quast")),
          year        = "2026",
-         note        = "R package version 1.0.0",
-         url         = "https://github.com/SebKrantz/icio",
-         textVersion = paste("Krantz, S. and B. Quast (2026).",
-                             "icio: Global Value Chain Decomposition of Inter-Country Input-Output Tables.",
-                             "R package version 1.0.0. https://github.com/SebKrantz/icio"),
+         note        = "R package version 0.1.0",
+         url         = "https://github.com/ikashnitsky/ddec",
+         textVersion = paste("Kashnitsky, I., S. Krantz and B. Quast (2026).",
+                             "ddec: Decomposition Methods Across Trade and Demography.",
+                             "R package version 0.1.0. https://github.com/ikashnitsky/ddec"),
 
-         mheader     = "To cite icio in publications please use:",
+         mheader     = "To cite ddec in publications please use:",
 
-         mfooter     = paste("The Borin-Mancini decomposition implemented in bm() follows",
-                             "Borin and Mancini (2019) and the Stata 'icio' command",
-                             "(Belotti, Borin and Mancini 2021); please cite these as well",
-                             "when using it. See also 'citation()' for citing R.")
+         mfooter     = paste("The GVC decompositions are inherited from the 'icio' package",
+                             "(Krantz and Quast); bm() follows Borin and Mancini (2019) and the",
+                             "Stata 'icio' command (Belotti, Borin and Mancini 2021). Please cite",
+                             "the original method papers too. See also 'citation()' for citing R.")
 )

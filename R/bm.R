@@ -91,7 +91,7 @@
 #' Belotti, F., Borin, A. and Mancini, M. (2021). icio: Economic analysis with intercountry
 #' input-output tables. \emph{The Stata Journal, 21}(3), 708-755.
 #' @export
-#' @seealso \code{\link{kww}}, \code{\link{wwz}}, \code{\link{leontief}}, \code{\link{icio-package}}
+#' @seealso \code{\link{kww}}, \code{\link{wwz}}, \code{\link{leontief}}, \code{\link{ddec-package}}
 #' @examples
 #' # Load example data and create an 'icio' object
 #' data(leather)

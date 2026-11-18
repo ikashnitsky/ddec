@@ -11,6 +11,8 @@ name: test-coverage
 jobs:
   test-coverage:
     runs-on: macos-latest
+    env:
+      RENV_ACTIVATE_PROJECT: false
     steps:
       - uses: actions/checkout@v4
 

@@ -53,7 +53,7 @@ decomp(m, aggregation = "bilateral")
 }
 }
 \seealso{
-\code{\link{load_icio}}, \code{\link{decomp}}, \code{\link{icio-package}}
+\code{\link{load_icio}}, \code{\link{decomp}}, \code{\link{ddec-package}}
 }
 \author{
 Sebastian Krantz

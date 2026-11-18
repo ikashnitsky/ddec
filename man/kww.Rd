@@ -56,7 +56,7 @@ Koopman, R., Wang, Z., & Wei, S. J. (2014). Tracing value-added and double count
 Borin, A., & Mancini, M. (2019). Measuring What Matters in Global Value Chains and Value-Added Trade. \emph{World Bank Policy Research Working Paper 8804}.
 }
 \seealso{
-\code{\link{bm}}, \code{\link{wwz}}, \code{\link{wwz2kww}}, \code{\link{icio-package}}
+\code{\link{bm}}, \code{\link{wwz}}, \code{\link{wwz2kww}}, \code{\link{ddec-package}}
 }
 \author{
 Sebastian Krantz

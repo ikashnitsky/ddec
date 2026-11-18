@@ -65,7 +65,7 @@ Koopman, R., Wang, Z., & Wei, S. J. (2014). Tracing value-added and double count
 Wang, Zhi, Shang-Jin Wei, and Kunfu Zhu (2013). Quantifying international production sharing at the bilateral and sector levels (No. w19677). \emph{National Bureau of Economic Research}.
 }
 \seealso{
-\code{\link{wwz}}, \code{\link{kww}}, \code{\link{icio-package}}
+\code{\link{wwz}}, \code{\link{kww}}, \code{\link{ddec-package}}
 }
 \author{
 Sebastian Krantz

@@ -1,0 +1,107 @@
+---
+title: "Demographic decompositions"
+---
+
+```{r setup}
+#| cache: false
+source("analysis/_setup.R")
+d0 <- as.data.table(dk_mortality)[year == 2000]
+d1 <- as.data.table(dk_mortality)[year == 2019]
+```
+
+## Data
+
+`dk_mortality` contains Danish deaths and mid-year population by single year of age (0 to 94,
+plus an open 95+ group) for 2000 and 2019. It is built from Eurostat `demo_magec` and
+`demo_pjan` by `data-raw/get_demo_data.R`. The raw downloads are cached under `data-raw/cache/`,
+so this page needs no network access. The Human Mortality Database would be an alternative
+source, but it needs a login, so that script only documents the manual download steps.
+
+```{r data}
+data.table(year = c(2000, 2019),
+           deaths = c(sum(d0$deaths), sum(d1$deaths)),
+           population = round(c(sum(d0$pop), sum(d1$pop))),
+           CDR_per_1000 = 1000 * c(sum(d0$deaths) / sum(d0$pop), sum(d1$deaths) / sum(d1$pop)),
+           e0 = c(life_table(d0$mx)$ex[1], life_table(d1$mx)$ex[1]))
+```
+
+## Kitagawa: why the crude death rate barely moved
+
+Life expectancy rose by `r fmt(life_table(d1$mx)$ex[1] - life_table(d0$mx)$ex[1], 1)` years, yet the crude death rate fell by only
+`r fmt(1000 * (sum(d0$deaths) / sum(d0$pop) - sum(d1$deaths) / sum(d1$pop)), 1)` per 1000. The Kitagawa decomposition [@kitagawa1955] splits that change into a **rate effect**
+(lower mortality at each age) and a **composition effect** (an older population):
+
+```{r kitagawa}
+k <- kitagawa2(d0$mx, d1$mx, d0$pop, d1$pop, groups = d0$age)
+data.table(component = c("rate effect", "composition effect", "sum", "observed change"),
+           per_1000 = 1000 * c(sum(k$rate), sum(k$composition),
+                               sum(k$rate) + sum(k$composition), attr(k, "R2") - attr(k, "R1")))
+```
+
+Lower mortality on its own would have cut the CDR by `r fmt(-1000 * sum(k$rate), 1)` per 1000.
+Population ageing added back `r fmt(1000 * sum(k$composition), 1)` per 1000, more than half of that.
+
+## Das Gupta: more than two factors
+
+@dasgupta1993 generalises Kitagawa's approach to any number of factors. `das_gupta_n()`
+reproduces his Example 2.3: the birth rate as a product of four factors, 1971 vs 1979. The
+package tests check it against `DasGuptR` [@R-DasGuptR] to 1e-6.
+
+```{r dasgupta}
+f71 <- list(birth_preg = 25.3, preg_actw = 0.214, actw_prop = 0.279, w_prop = 0.949)
+f79 <- list(birth_preg = 32.7, preg_actw = 0.290, actw_prop = 0.473, w_prop = 0.986)
+dg <- das_gupta_n(f71, f79)
+data.table(factor = names(dg), effect = round(as.vector(dg), 4),
+           share_pct = round(100 * as.vector(dg) / sum(dg), 1))
+```
+
+The effects sum to `r fmt(sum(dg), 4)`, which is the full change in the rate
+(`r fmt(attr(dg, "R2"), 4)` − `r fmt(attr(dg, "R1"), 4)`).
+
+## Arriaga: which ages drove the gain in life expectancy
+
+```{r arriaga}
+a <- arriaga_decomp(d0$mx, d1$mx, age = d0$age)
+a[, age_group := cut(age, c(0, 1, 15, 45, 65, 80, Inf), right = FALSE,
+                     labels = c("0", "1-14", "15-44", "45-64", "65-79", "80+"))]
+ag <- a[, .(direct = sum(direct), indirect = sum(indirect), interaction = sum(interaction),
+            total = sum(total)), by = age_group]
+rbind(ag, data.table(age_group = "all ages", direct = sum(a$direct), indirect = sum(a$indirect),
+                     interaction = sum(a$interaction), total = sum(a$total)))[
+  , lapply(.SD, function(x) if (is.numeric(x)) round(x, 3) else x)]
+```
+
+The contributions add up to `r fmt(sum(a$total))` years, which is exactly
+$e_0^{2019} - e_0^{2000}$ = `r fmt(attr(a, "e02") - attr(a, "e01"))`. Using `LEdecomp`'s
+Andreev-Kingkade $a_0$ [@andreev2015], `arriaga_decomp()` matches `LEdecomp::arriaga()`
+[@R-LEdecomp] to 1e-6 (see the package tests).
+
+```{r fig-arriaga}
+#| fig-cap: "Contribution of each single year of age to the 4.6-year gain in Danish life expectancy at birth, 2000–2019 (Arriaga decomposition). The direct effect comes from lower mortality within the age interval. The indirect and interaction effects are the extra years that the additional survivors go on to live at older ages. With single-year age groups, the direct effect covers only the time lived within that one year, so almost all of each age's contribution appears as indirect + interaction."
+al <- melt(a[, .(age, direct, `indirect + interaction` = indirect + interaction)], id.vars = "age")
+ggplot(al, aes(age, value, fill = variable)) +
+  geom_col(width = 0.9, colour = "white", linewidth = 0.15) +
+  scale_fill_manual(values = pal[1:2]) +
+  labs(x = "Age", y = "Contribution to Δe0 (years)",
+       title = "Ages 60–89 account for about 60% of the gain in life expectancy",
+       subtitle = "Denmark, both sexes, 2000 → 2019")
+```
+
+## LTRE: decomposing a change in the population growth rate
+
+A fixed-design LTRE [@caswell1989] decomposes the change in the dominant eigenvalue $\lambda$
+of a projection matrix. Each entry's contribution is its sensitivity at the midpoint matrix
+times its change. This is a *first-order* approximation, so the contributions do not add up
+exactly. We apply it to popbio's *Hudsonia montana* matrices for 1985 and 1988 [@R-popbio]:
+
+```{r ltre}
+h <- local({ e <- new.env(); utils::data("hudsonia", package = "popbio", envir = e); e$hudsonia })
+C <- ltre_fixed(h$A85, h$A88)
+data.table(lambda_1985 = popbio::lambda(h$A85), lambda_1988 = popbio::lambda(h$A88),
+           exact_change = attr(C, "exact"), sum_of_contributions = sum(C),
+           approximation_error = attr(C, "error"))
+all.equal(unclass(C)[1:36], unclass(popbio::LTRE(h$A88, h$A85))[1:36])
+```
+
+[Structural parallels](03-structural-parallels.qmd) compares this approximation with the exact
+Shapley answer, and uses the same "sensitivity × change" logic for value added in exports.

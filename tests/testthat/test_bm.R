@@ -1,5 +1,5 @@
 # load the package
-library(icio)
+library(ddec)
 
 # load test data
 data(leather)

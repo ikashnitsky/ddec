@@ -1,0 +1,69 @@
+---
+title: "Decomposition methods across trade and demography"
+subtitle: "A reproducible demonstration with the ddec R package"
+---
+
+```{r setup}
+#| cache: false
+source("analysis/_setup.R")
+```
+
+## Motivation
+
+Trade economists decompose a country's gross exports into domestic value added, foreign value
+added and double counting [@hummels2001; @koopman2014; @wang2013; @borin2019]. Demographers
+decompose a difference in crude rates, life expectancy or population growth into
+contributions by age, factor or vital rate [@kitagawa1955; @dasgupta1993; @arriaga1984;
+@caswell1989]. The two literatures seldom cite each other, even though their methods share the
+same machinery:
+
+1. Both partition an aggregate into **additive contributions** from structured factors.
+2. The **Leontief inverse** $(I - A)^{-1}$ is the same mathematical object as the
+   **fundamental matrix** $N = (I - U)^{-1}$ of an absorbing Markov chain [@kemeny1960;
+   @caswell2001], which underlies multistate life tables and matrix population models.
+3. The **non-uniqueness** of multi-factor decompositions is solved the same way in both fields,
+   by averaging over all orderings (the Shapley value). This is what Das Gupta standardisation
+   does in demography and what structural decomposition analysis does in input-output economics
+   [@dietzenbacher1998; @shorrocks2013].
+4. The **LTRE** (sensitivity × parameter change) and **Leontief-based attribution** both
+   decompose a scalar output of a matrix model into per-cell contributions, and their
+   sensitivities have the same outer-product form.
+
+## Pages
+
+* [GVC results](01-gvc-decomposition.qmd): Leontief, KWW, WWZ and Borin-Mancini on the same
+  table. Every method's components sum to gross exports.
+* [Demographic results](02-demographic-decomposition.qmd): Kitagawa, Das Gupta, Arriaga and
+  LTRE, with cross-checks against `DasGuptR`, `LEdecomp` and `popbio`.
+* [Structural parallels](03-structural-parallels.qmd): the matrix-inverse isomorphism, Shapley
+  on both sides (including the order dependence of sequential decompositions), sensitivity-based
+  attribution against the exact answer, the concept map, and the limits of the analogy.
+
+## Data
+
+| Dataset | Content | Source | Real? |
+|---|---|---|---|
+| `leather` | 3 countries × 3 industries ICIO table | inherited from `icio`/`decompr` | toy example |
+| `icio_synth` | two 3 × 2 ICIO tables, "2010" and "2020" | `simulate_icio()`, `data-raw/get_icio_data.R` | **synthetic** |
+| `dk_mortality` | Danish deaths, population and $m_x$ by single age, 2000 and 2019 | Eurostat `demo_magec`, `demo_pjan`; `data-raw/get_demo_data.R` | real |
+| `hudsonia` | *Hudsonia montana* stage-projection matrices, 1985–1988 | `popbio` [@R-popbio] | real |
+| Das Gupta examples | worked examples from @dasgupta1993 | `DasGuptR` [@R-DasGuptR] | real (published) |
+
+```{r data-summary}
+data.table(object = c("leather", "icio_synth[['2010']]", "dk_mortality"),
+           dimensions = c(paste(dim(leather$inter), collapse = " x "),
+                          paste(dim(icio_synth[["2010"]]$inter), collapse = " x "),
+                          paste(dim(dk_mortality), collapse = " x ")))
+```
+
+Real OECD/ADB ICIO tables are not bundled: they run to hundreds of megabytes and have
+restrictive licences. `load_icio()` and `load_icio_csv()` accept them directly.
+
+## Reproducing this report
+
+```sh
+Rscript -e 'renv::restore()'
+quarto render
+```
+
+All data are bundled or cached under `data-raw/cache/`, so rendering makes no network calls.

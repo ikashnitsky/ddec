@@ -29,7 +29,7 @@
 #'
 #' Borin, A., & Mancini, M. (2019). Measuring What Matters in Global Value Chains and Value-Added Trade. \emph{World Bank Policy Research Working Paper 8804}.
 #' @export
-#' @seealso \code{\link{load_icio}}, \code{\link{bm}}, \code{\link{icio-package}}
+#' @seealso \code{\link{load_icio}}, \code{\link{bm}}, \code{\link{ddec-package}}
 #' @examples
 #' # Load leather example data
 #' data(leather)

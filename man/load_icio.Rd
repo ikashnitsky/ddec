@@ -87,7 +87,7 @@ m <- load_icio(leather$inter, leather$final, leather$countries, leather$industri
 str(m)
 }
 \seealso{
-\code{\link{load_icio_csv}}, \code{\link{decomp}}, \code{\link{bm}}, \code{\link{icio-package}}
+\code{\link{load_icio_csv}}, \code{\link{decomp}}, \code{\link{bm}}, \code{\link{ddec-package}}
 }
 \author{
 Sebastian Krantz, Bastiaan Quast. Adapted from code by Fei Wang.

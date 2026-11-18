@@ -48,7 +48,7 @@
 #'  longer hold exactly - faithful to the supplied data.
 #' @author Sebastian Krantz, Bastiaan Quast. Adapted from code by Fei Wang.
 #' @export
-#' @seealso \code{\link{load_icio_csv}}, \code{\link{decomp}}, \code{\link{bm}}, \code{\link{icio-package}}
+#' @seealso \code{\link{load_icio_csv}}, \code{\link{decomp}}, \code{\link{bm}}, \code{\link{ddec-package}}
 #' @examples
 #' # Load example data
 #' data(leather)
@@ -255,7 +255,7 @@ load_icio <- function(inter, final, countries, industries, output = NULL, va = N
 #' @return An 'icio' class object, see \code{\link{load_icio}}.
 #' @author Sebastian Krantz
 #' @export
-#' @seealso \code{\link{load_icio}}, \code{\link{decomp}}, \code{\link{icio-package}}
+#' @seealso \code{\link{load_icio}}, \code{\link{decomp}}, \code{\link{ddec-package}}
 #' @examples
 #' \dontrun{
 #' # A table exported for the Stata 'icio' command, together with its country list

@@ -1,4 +1,4 @@
-library(icio)
+library(ddec)
 
 data(leather)
 list2env(leather, environment())

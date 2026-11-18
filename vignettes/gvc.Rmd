@@ -1,5 +1,5 @@
 ---
-title: "Global Value Chain Decomposition with icio"
+title: "Global Value Chain Decomposition with ddec"
 author: "Sebastian Krantz"
 date: "`r Sys.Date()`"
 output:
@@ -7,7 +7,7 @@ output:
     toc: true
     toc_depth: 2
 vignette: >
-  %\VignetteIndexEntry{Global Value Chain Decomposition with icio}
+  %\VignetteIndexEntry{Global Value Chain Decomposition with ddec}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -21,7 +21,7 @@ knitr::opts_chunk$set(
 options(width = 90)
 ```
 
-**icio** implements four gross-export decompositions from the Global Value Chain (GVC)
+**ddec** (inheriting the code of the **icio** package) implements four gross-export decompositions from the Global Value Chain (GVC)
 literature. All decompositions operate on an inter-country input-output (ICIO) table and
 answer the question: *where does the value added embodied in a country's exports
 ultimately originate?*
@@ -42,7 +42,7 @@ The package ships with `leather`, a minimal 3-country × 3-industry ICIO table c
 the leather GVC for Argentina, Turkey, and Germany.
 
 ```{r data}
-library(icio)
+library(ddec)
 data(leather)
 
 leather$countries

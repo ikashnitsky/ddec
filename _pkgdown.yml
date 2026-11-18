@@ -1,7 +1,7 @@
-url: https://sebkrantz.github.io/icio/
+url: https://ikashnitsky.github.io/ddec/
 
 home:
-  title: Global Value Chain Decomposition of Inter-Country Input-Output Tables
+  title: Decomposition Methods Across Trade and Demography
 
 template:
   bootstrap: 5
@@ -17,7 +17,7 @@ development:
   mode: auto
 
 navbar:
-  title: icio
+  title: ddec
   structure:
     left:
     - reference
@@ -38,55 +38,63 @@ navbar:
       href: news/index.html
     github:
       icon: fa-github
-      href: https://github.com/SebKrantz/icio
+      href: https://github.com/ikashnitsky/ddec
       aria-label: GitHub
 
 reference:
 
 - contents:
-  - icio-package
+  - ddec-package
 
-- title: "Data Input"
-  desc: "Parse raw ICIO table matrices, or the Stata `icio` CSV format, into an `icio` class object."
+- title: "GVC: Data Input"
+  desc: "Parse raw ICIO table matrices, the Stata `icio` CSV format, or a simulated table into an `icio` class object."
 - contents:
   - load_icio
   - load_icio_csv
+  - simulate_icio
 
-- title: "Leontief Decomposition"
-  desc: "Derive the value-added origin of exports by country and industry (Hummels, Ishii & Yi 2001)."
-- contents:
-  - leontief
-
-- title: "Koopman-Wang-Wei (KWW) Decomposition"
-  desc: "Split country-level exports into 9 value-added components (Koopman, Wang & Wei 2014)."
-- contents:
-  - kww
-  - wwz2kww
-
-- title: "Wang-Wei-Zhu (WWZ) Decomposition"
-  desc: "Split bilateral exports into 16 value-added components by importing country (Wang, Wei & Zhu 2013)."
-- contents:
-  - wwz
-
-- title: "Borin-Mancini (BM) Decomposition"
-  desc: "Split gross exports into up to 13 value-added and GVC participation components (Borin & Mancini 2019)."
+- title: "GVC: Decompositions of Gross Exports"
+  desc: "Leontief (Hummels, Ishii & Yi 2001), Koopman-Wang-Wei (2014), Wang-Wei-Zhu (2013) and Borin-Mancini (2019)."
 - contents:
   - bm
-
-- title: "Convenience Interface"
-  desc: "Run any decomposition with a single call, also across several ICIO tables (e.g. one per year)."
-- contents:
+  - leontief
+  - kww
+  - wwz2kww
+  - wwz
   - decomp
+  - gvc_components
 
-- title: "Example Data"
-  desc: "Built-in 3×3 ICIO table (leather sector) for testing and learning."
+- title: "Demographic Decompositions"
+  desc: "Kitagawa (1955), Das Gupta (1993), Arriaga (1984) and fixed-design LTRE (Caswell 1989)."
+- contents:
+  - kitagawa2
+  - das_gupta_n
+  - life_table
+  - arriaga_decomp
+  - ltre_fixed
+
+- title: "Matrix Models Shared by Both Fields"
+  desc: "The Leontief inverse is the fundamental matrix of an absorbing Markov chain; sensitivities are outer products in both."
+- contents:
+  - leontief_inverse
+  - fundamental_matrix
+  - lambda_sensitivity
+
+- title: "Order-Independent Decomposition"
+  desc: "Shapley (all-orderings) decomposition of a change in any function, and the order-dependent sequential alternative."
+- contents:
+  - shapley_decomp
+
+- title: "Data"
 - contents:
   - leather
+  - icio_synth
+  - dk_mortality
 
 articles:
-- title: Introduction to icio
+- title: GVC decompositions
   desc: >
-    Walk-through of the main workflow: loading ICIO tables, running all four
+    Walk-through of the GVC workflow: loading ICIO tables, running all four
     decompositions, and interpreting the value-added components.
   contents:
-  - icio
+  - gvc

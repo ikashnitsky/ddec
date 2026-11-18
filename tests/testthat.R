@@ -1,4 +1,4 @@
 library(testthat)
-library(icio)
+library(ddec)
 
-test_check("icio")
+test_check("ddec")

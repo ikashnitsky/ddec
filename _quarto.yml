@@ -1,0 +1,40 @@
+project:
+  type: website
+  output-dir: _site
+  execute-dir: project
+  render:
+    - analysis/index.qmd
+    - analysis/01-gvc-decomposition.qmd
+    - analysis/02-demographic-decomposition.qmd
+    - analysis/03-structural-parallels.qmd
+
+website:
+  title: "Decomposition methods across trade and demography"
+  navbar:
+    left:
+      - href: analysis/index.qmd
+        text: Overview
+      - href: analysis/01-gvc-decomposition.qmd
+        text: GVC results
+      - href: analysis/02-demographic-decomposition.qmd
+        text: Demographic results
+      - href: analysis/03-structural-parallels.qmd
+        text: Structural parallels
+
+execute:
+  cache: true
+  freeze: auto
+  warning: false
+  message: false
+
+bibliography: references.bib
+
+format:
+  html:
+    theme: cosmo
+    toc: true
+    code-fold: true
+    code-summary: "Code"
+    fig-width: 8
+    fig-height: 4.5
+    df-print: kable

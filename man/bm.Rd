@@ -129,7 +129,7 @@ Belotti, F., Borin, A. and Mancini, M. (2021). icio: Economic analysis with inte
 input-output tables. \emph{The Stata Journal, 21}(3), 708-755.
 }
 \seealso{
-\code{\link{kww}}, \code{\link{wwz}}, \code{\link{leontief}}, \code{\link{icio-package}}
+\code{\link{kww}}, \code{\link{wwz}}, \code{\link{leontief}}, \code{\link{ddec-package}}
 }
 \author{
 Sebastian Krantz
