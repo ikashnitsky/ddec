@@ -116,7 +116,7 @@ ltre_fixed <- function(A1, A2, stat = "lambda", sensitivity = NULL) {
   if (!is.matrix(A1) || !is.matrix(A2) || !identical(dim(A1), dim(A2)))
     stop("'A1' and 'A2' must be matrices of the same dimensions.")
   if (identical(stat, "lambda")) {
-    statfun <- function(M) .dominant_eigen(M)$lambda
+    statfun <- .dominant_lambda
     if (is.null(sensitivity)) sensitivity <- lambda_sensitivity
   } else if (is.function(stat)) {
     statfun <- stat

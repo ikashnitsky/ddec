@@ -22,6 +22,12 @@
 #' lt <- life_table(mx = c(0.01, 0.002, 0.005, 0.02, 0.1), nx = c(1, 4, 20, 25, Inf))
 #' lt
 life_table <- function(mx, nx = 1, ax = NULL, age = NULL, radix = 1) {
+  setDT(.life_table_cols(mx, nx = nx, ax = ax, age = age, radix = radix))[]
+}
+
+# The life-table arithmetic as a plain list of columns. arriaga_decomp() works on this directly,
+# so the only data.table it builds is its result (data.table construction dominates at ~100 ages).
+.life_table_cols <- function(mx, nx = 1, ax = NULL, age = NULL, radix = 1) {
   n <- length(mx)
   if (n < 1L || anyNA(mx) || any(mx < 0)) stop("'mx' must be non-negative and non-missing.")
   if (mx[n] <= 0) stop("The death rate of the open age interval must be positive.")
@@ -39,8 +45,8 @@ life_table <- function(mx, nx = 1, ax = NULL, age = NULL, radix = 1) {
   Lx <- nx * lx - (nx - ax) * dx
   Lx[n] <- lx[n] * ax[n]
   Tx <- rev(cumsum(rev(Lx)))
-  data.table(age = age, nx = nx, mx = mx, ax = ax, qx = qx, lx = lx, dx = dx,
-             Lx = Lx, Tx = Tx, ex = Tx / lx)
+  list(age = age, nx = nx, mx = mx, ax = ax, qx = qx, lx = lx, dx = dx,
+       Lx = Lx, Tx = Tx, ex = Tx / lx)
 }
 
 #' Arriaga Decomposition of a Difference in Life Expectancy
@@ -84,8 +90,8 @@ life_table <- function(mx, nx = 1, ax = NULL, age = NULL, radix = 1) {
 #' sum(a$total); attr(a, "e02") - attr(a, "e01")
 arriaga_decomp <- function(mx1, mx2, nx = 1, ax1 = NULL, ax2 = NULL, age = NULL) {
   if (length(mx1) != length(mx2)) stop("'mx1' and 'mx2' must have the same length.")
-  t1 <- life_table(mx1, nx = nx, ax = ax1, age = age)
-  t2 <- life_table(mx2, nx = nx, ax = ax2, age = age)
+  t1 <- .life_table_cols(mx1, nx = nx, ax = ax1, age = age)
+  t2 <- .life_table_cols(mx2, nx = nx, ax = ax2, age = age)
   n <- length(mx1)
   l1 <- t1$lx; l2 <- t2$lx
   nxt <- function(z, fill) c(z[-1L], fill)
@@ -93,8 +99,8 @@ arriaga_decomp <- function(mx1, mx2, nx = 1, ax1 = NULL, ax2 = NULL, age = NULL)
   other <- nxt(t2$Tx, 0) * (l1 / l2 - nxt(l1, 0) / nxt(l2, 1))
   indirect <- nxt(t1$Tx, 0) * (l1 * nxt(l2, 1) / (l2 * nxt(l1, 1)) - 1)
   indirect[n] <- 0
-  res <- data.table(age = t1$age, direct = direct, indirect = indirect,
-                    interaction = other - indirect, total = direct + other)
+  res <- setDT(list(age = t1$age, direct = direct, indirect = indirect,
+                    interaction = other - indirect, total = direct + other))
   setattr(res, "e01", t1$ex[1L])
   setattr(res, "e02", t2$ex[1L])
   res

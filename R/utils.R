@@ -23,15 +23,29 @@
 }
 
 # Dominant (right) eigenvector w and left eigenvector v of a non-negative matrix,
-# scaled such that sum(w) = 1 and sum(v * w) = 1.
+# scaled such that sum(w) = 1 and sum(v * w) = 1. One eigen() call: the left eigenvectors are
+# the rows of W^-1, so v solves t(W) v = e_k (one LU, as in popbio::sensitivity()). Only for a
+# defective matrix (singular W) do we fall back to a second eigen() on t(A).
 .dominant_eigen <- function(A) {
   er <- eigen(A)
   k <- which.max(Re(er$values))
   lambda <- Re(er$values[k])
-  w <- abs(Re(er$vectors[, k]))
+  W <- er$vectors
+  w <- abs(Re(W[, k]))
   w <- w / sum(w)
-  el <- eigen(t(A))
-  v <- abs(Re(el$vectors[, which.max(Re(el$values))]))
+  ek <- numeric(nrow(A)); ek[k] <- 1
+  v <- tryCatch(solve(t(W), ek), error = function(e) NULL)
+  if (is.null(v) || !all(is.finite(v))) {
+    el <- eigen(t(A))
+    v <- el$vectors[, which.max(Re(el$values))]
+  }
+  v <- abs(Re(v))
   v <- v / sum(v * w)
   list(lambda = lambda, w = w, v = v)
+}
+
+# Dominant eigenvalue only - no eigenvectors, so considerably cheaper than .dominant_eigen().
+.dominant_lambda <- function(A) {
+  ev <- eigen(A, only.values = TRUE)$values
+  Re(ev[which.max(Re(ev))])
 }
